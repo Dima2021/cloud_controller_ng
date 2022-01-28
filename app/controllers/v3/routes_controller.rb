@@ -12,6 +12,7 @@ require 'presenters/v3/paginated_list_presenter'
 require 'actions/route_create'
 require 'actions/route_delete'
 require 'actions/route_update'
+require 'actions/route_destination_update'
 require 'fetchers/app_fetcher'
 require 'fetchers/route_fetcher'
 require 'fetchers/route_destinations_list_fetcher'
@@ -142,6 +143,19 @@ class RoutesController < ApplicationController
     render status: :ok, json: Presenters::V3::RouteDestinationsPresenter.new(route.route_mappings, route: route)
   rescue UpdateRouteDestinations::DuplicateDestinationError => e
     unprocessable!(e.message)
+  end
+
+  def update_destination
+    route = Route.find(guid: hashed_params[:guid])
+    route_not_found! unless route && permission_queryer.can_read_route?(route.space.guid, route.organization.guid)
+    unauthorized! unless permission_queryer.can_manage_apps_in_space?(route.space.guid)
+
+    destination = RouteMappingModel.find(guid: hashed_params[:destination_guid])
+    unprocessable_destination! unless destination
+
+    RouteDestinationUpdate.update(destination, message)
+
+    render status: :ok, json: Presenters::V3::RouteDestinationsPresenter.new(route.route_mappings, route: route)
   end
 
   def route
